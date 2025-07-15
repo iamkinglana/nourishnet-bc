@@ -1,15 +1,114 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
-  output   = "../generated/prisma"
 }
 
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+}
+
+model User {
+  id                Int           @id @default(autoincrement())
+  name              String
+  email             String        @unique
+  password          String
+  role              Role
+  intake            IntakeForm?
+  groceryLists      GroceryList[]
+  notes             Note[]        @relation("ClientNotes")
+  checkIns          CheckIn[]
+  resetToken        String?
+  resetExpires      DateTime?
+  clientNotes       ClientNote[]  @relation("ClientNotes")
+  nutritionistNotes ClientNote[]  @relation("NutritionistNotes")
+  meals             Meal[]        @relation("CreatedMeals")
+  createdPlans      MealPlan[]    @relation("CreatedPlans") // ✔ plans created by nutritionist
+  assignedMealPlans MealPlan[]    @relation("ClientPlans") // ✔ plans assigned to client
+  createdAt         DateTime      @default(now())
+}
+
+model IntakeForm {
+  id          Int      @id @default(autoincrement())
+  user        User     @relation(fields: [userId], references: [id])
+  userId      Int      @unique
+  goals       String
+  allergies   String
+  lifestyle   String
+  preferences String
+  createdAt   DateTime @default(now())
+}
+
+model Meal {
+  id          Int      @id @default(autoincrement())
+  createdById Int
+  createdBy   User     @relation("CreatedMeals", fields: [createdById], references: [id])
+  name        String
+  title       String
+  description String
+  ingredients String[]
+  calories    Float?
+  macros      Json
+  isPublic    Boolean  @default(false)
+  tags        String[]
+}
+
+model MealPlan {
+  id          Int          @id @default(autoincrement())
+  createdBy   User         @relation("CreatedPlans", fields: [createdById], references: [id])
+  createdById Int
+  user        User?        @relation("ClientPlans", fields: [userId], references: [id])
+  userId      Int?
+  weekStart   DateTime
+  meals       Json
+  isTemplate  Boolean      @default(false)
+  grocery     GroceryList? @relation("MealPlanToGrocery", fields: [groceryId], references: [id])
+  groceryId   Int?         @unique
+  createdAt   DateTime     @default(now())
+}
+
+model GroceryList {
+  id         Int       @id @default(autoincrement())
+  user       User      @relation(fields: [userId], references: [id])
+  userId     Int
+  weekStart  DateTime
+  items      String[]
+  mealPlan   MealPlan? @relation("MealPlanToGrocery")
+  mealPlanId Int?
+  createdAt  DateTime  @default(now())
+}
+
+model Note {
+  id        Int      @id @default(autoincrement())
+  user      User     @relation("ClientNotes", fields: [userId], references: [id])
+  userId    Int
+  createdBy Int
+  note      String
+  createdAt DateTime @default(now())
+}
+
+enum Role {
+  client
+  nutritionist
+}
+
+model CheckIn {
+  id       Int      @id @default(autoincrement())
+  user     User     @relation(fields: [userId], references: [id])
+  userId   Int
+  date     DateTime @default(now())
+  weight   Float?
+  mood     String?
+  energy   String?
+  notes    String?
+  photoUrl String?
+}
+
+model ClientNote {
+  id             Int      @id @default(autoincrement())
+  client         User     @relation("ClientNotes", fields: [clientId], references: [id])
+  clientId       Int
+  nutritionist   User     @relation("NutritionistNotes", fields: [nutritionistId], references: [id])
+  nutritionistId Int
+  note           String
+  createdAt      DateTime @default(now())
 }
